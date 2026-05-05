@@ -1,0 +1,702 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-title" content="彦根 天文時刻" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="theme-color" content="#0b1020" />
+  <link rel="manifest" href="./manifest.webmanifest" />
+  <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png" />
+  <title>彦根 天文薄明・南中・月齢</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #0b1020;
+      --card: #151b2e;
+      --line: #273149;
+      --text: #f6f7fb;
+      --muted: #aeb8d0;
+      --accent: #8ab4ff;
+      --good: #9be7b3;
+      --warn: #ffd166;
+      --bad: #ff9b9b;
+      --shadow: rgba(0,0,0,.28);
+      --day: #ffd9a6;
+      --twilight: #7082a8;
+      --dark: #202a49;
+      --moonup: #b8d2ff;
+      --target: #7eb8ff;
+      --gridline: rgba(255,255,255,.14);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Yu Gothic", Meiryo, sans-serif;
+      background: radial-gradient(circle at top, #19213a 0%, var(--bg) 52%);
+      color: var(--text);
+      line-height: 1.55;
+    }
+    header { padding: 22px 16px 10px; max-width: 980px; margin: 0 auto; }
+    h1 { font-size: 1.55rem; margin: 0 0 6px; letter-spacing: .02em; }
+    .sub { color: var(--muted); font-size: .92rem; }
+    main { max-width: 980px; margin: 0 auto; padding: 0 12px 30px; }
+    .grid { display: grid; gap: 12px; }
+    @media (min-width: 760px) { .grid.two { grid-template-columns: 1fr 1fr; } }
+    .card {
+      background: linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,.015)), var(--card);
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      padding: 14px;
+      box-shadow: 0 12px 28px var(--shadow);
+    }
+    .card h2 { font-size: 1.05rem; margin: 0 0 10px; }
+    label { display: block; font-size: .82rem; color: var(--muted); margin-bottom: 3px; }
+    input {
+      width: 100%;
+      border: 1px solid var(--line);
+      background: #0e1425;
+      color: var(--text);
+      border-radius: 12px;
+      padding: 10px 11px;
+      font-size: 1rem;
+    }
+    .formrow { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .formrow.three { grid-template-columns: 1fr 1fr 1fr; }
+    button {
+      appearance: none;
+      border: 0;
+      background: var(--accent);
+      color: #071126;
+      border-radius: 14px;
+      padding: 11px 14px;
+      font-weight: 700;
+      font-size: .98rem;
+      margin-top: 10px;
+      width: 100%;
+    }
+    .kv { display: grid; grid-template-columns: 1fr auto; gap: 8px; padding: 8px 0; border-bottom: 1px dashed rgba(255,255,255,.11); }
+    .kv:last-child { border-bottom: 0; }
+    .k { color: var(--muted); }
+    .v { font-variant-numeric: tabular-nums; text-align: right; }
+    .big { font-size: 1.25rem; font-weight: 800; color: var(--good); }
+    .small { font-size: .82rem; color: var(--muted); }
+    table { width: 100%; border-collapse: collapse; overflow: hidden; font-size: .92rem; }
+    th, td { padding: 9px 7px; border-bottom: 1px solid rgba(255,255,255,.10); vertical-align: middle; }
+    th { color: var(--muted); font-weight: 600; text-align: left; background: rgba(255,255,255,.03); }
+    td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+    .pill { display: inline-block; border: 1px solid var(--line); border-radius: 999px; padding: 2px 8px; font-size: .78rem; color: var(--muted); white-space: nowrap; }
+    .ok { color: var(--good); }
+    .warn { color: var(--warn); }
+    .bad { color: var(--bad); }
+    details { margin-top: 10px; }
+    summary { color: var(--accent); cursor: pointer; }
+    .footer { color: var(--muted); font-size: .78rem; margin: 12px 4px; }
+    .error { color: var(--bad); font-weight: 700; padding: 8px 0; }
+    .section-label { margin-top: 12px; margin-bottom: 6px; font-size: .82rem; color: var(--muted); }
+    .legend { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 8px; color: var(--muted); font-size: .78rem; }
+    .legend-item { display: inline-flex; align-items: center; gap: 5px; }
+    .swatch { width: 12px; height: 12px; border-radius: 3px; border: 1px solid rgba(255,255,255,.16); }
+    .swatch.day { background: var(--day); }
+    .swatch.twilight { background: var(--twilight); }
+    .swatch.dark { background: var(--dark); }
+    .swatch.moonup { background: var(--moonup); }
+    .swatch.target { background: var(--target); }
+    .timeline { margin-top: 6px; }
+    .bar-wrap { position: relative; padding-top: 19px; }
+    .bar24 {
+      position: relative;
+      height: 24px;
+      border-radius: 999px;
+      overflow: hidden;
+      background: #0f172d;
+      border: 1px solid var(--line);
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,.02);
+    }
+    .seg { position: absolute; top: 0; bottom: 0; border-radius: 0; }
+    .seg.day { background: var(--day); }
+    .seg.twilight { background: var(--twilight); }
+    .seg.dark { background: var(--dark); }
+    .seg.moonup { background: var(--moonup); }
+    .seg.target { background: var(--target); }
+    .gridline { position: absolute; top: 0; bottom: 0; width: 1px; background: var(--gridline); z-index: 2; }
+    .marker { position: absolute; top: -3px; bottom: -3px; width: 2px; background: rgba(255,255,255,.96); box-shadow: 0 0 0 1px rgba(0,0,0,.2); z-index: 4; }
+    .marker-label { position: absolute; top: 0; transform: translateX(-50%); font-size: .66rem; color: var(--muted); white-space: nowrap; max-width: 66px; overflow: hidden; text-overflow: ellipsis; }
+    .timeline-scale-dense { position: relative; height: 18px; margin-top: 3px; font-size: .66rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+    .tick-label { position: absolute; transform: translateX(-50%); white-space: nowrap; }
+    .moon-visual { display: grid; grid-template-columns: 96px 1fr; gap: 12px; align-items: center; margin-bottom: 6px; }
+    .moon-icon-box { width: 96px; height: 96px; border-radius: 18px; display: grid; place-items: center; background: rgba(255,255,255,.03); border: 1px solid var(--line); }
+    .moon-emoji { font-size: 72px; line-height: 1; }
+    .moon-phase-text .bigline { font-size: 1.3rem; font-weight: 800; color: var(--good); line-height: 1.2; }
+    .moon-phase-text .subline { color: var(--muted); font-size: .88rem; margin-top: 4px; }
+    .advice { margin: 10px 0 8px; padding: 10px 12px; border-radius: 14px; border: 1px solid rgba(255,255,255,.10); background: rgba(255,255,255,.035); font-size: .9rem; }
+    .advice.ok { border-color: rgba(155,231,179,.42); }
+    .advice.warn { border-color: rgba(255,209,102,.45); }
+    .advice.bad { border-color: rgba(255,155,155,.45); }
+        .moon-spots-title { margin-top: 10px; font-weight: 700; color: var(--text); }
+    .moon-spots-note { color: var(--muted); font-size: .8rem; margin-top: 4px; }
+    .moon-spot-group-title { margin-top: 10px; margin-bottom: 6px; color: var(--text); font-weight: 700; font-size: .86rem; }
+    .moon-spot-cards { display: grid; gap: 10px; margin-top: 6px; }
+    .moon-spot-card { display: grid; grid-template-columns: 74px 1fr; gap: 10px; padding: 10px; border-radius: 14px; border: 1px solid rgba(255,255,255,.08); background: rgba(255,255,255,.025); }
+    .moon-diagram { width: 74px; height: 74px; border-radius: 12px; display: grid; place-items: center; background: rgba(255,255,255,.03); border: 1px solid rgba(255,255,255,.06); }
+    .moon-spot-name { font-weight: 700; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+    .moon-spot-desc { font-size: .84rem; color: var(--muted); margin-top: 4px; }
+    .moon-spot-extra { font-size: .78rem; color: var(--text); margin-top: 5px; opacity: .92; }
+    .difficulty { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 999px; font-size: .74rem; border: 1px solid rgba(255,255,255,.10); }
+    .difficulty.easy { color: var(--good); border-color: rgba(155,231,179,.32); background: rgba(155,231,179,.08); }
+    .difficulty.medium { color: var(--warn); border-color: rgba(255,209,102,.34); background: rgba(255,209,102,.08); }
+    .difficulty.hard { color: var(--bad); border-color: rgba(255,155,155,.32); background: rgba(255,155,155,.08); }
+    .gear-rec-list { display: grid; gap: 12px; margin-top: 12px; }
+    .gear-rec-card { padding: 12px; border-radius: 16px; border: 1px solid rgba(255,255,255,.09); background: rgba(255,255,255,.025); }
+    .gear-rec-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; }
+    .gear-rec-title { font-weight: 800; font-size: 1rem; }
+    .gear-rec-score { font-size: .78rem; color: var(--good); border: 1px solid rgba(155,231,179,.28); background: rgba(155,231,179,.07); padding: 2px 8px; border-radius: 999px; white-space: nowrap; }
+    .gear-rec-meta { color: var(--muted); font-size: .82rem; margin-top: 3px; }
+    .gear-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+    .gear-tag { display: inline-flex; align-items: center; border: 1px solid rgba(255,255,255,.10); border-radius: 999px; padding: 2px 8px; font-size: .76rem; color: var(--muted); background: rgba(255,255,255,.025); }
+    .gear-rec-reason { margin-top: 8px; font-size: .86rem; color: var(--text); }
+.target-bar-list { display: grid; gap: 12px; margin-top: 12px; }
+    .target-item { padding: 10px; border: 1px solid rgba(255,255,255,.08); border-radius: 14px; background: rgba(255,255,255,.02); }
+    .target-head { display: flex; justify-content: space-between; gap: 8px; align-items: baseline; margin-bottom: 6px; }
+    .target-name { font-weight: 700; }
+    .target-meta { color: var(--muted); font-size: .82rem; text-align: right; }
+    .pwa-help { margin-top: 10px; padding: 10px 12px; border-radius: 14px; background: rgba(138,180,255,.08); border: 1px solid rgba(138,180,255,.22); color: var(--muted); font-size: .84rem; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>彦根 天文薄明・南中・月齢</h1>
+    <div class="sub">iPhoneのSafariで確認する簡易Webアプリ。ホーム画面に追加するとアプリ風に使えます。</div>
+  </header>
+
+  <main class="grid">
+    <section class="card">
+      <h2>計算条件</h2>
+      <div class="formrow">
+        <div><label for="dateInput">日付</label><input id="dateInput" type="date" /></div>
+        <div><label for="timeInput">月齢の基準時刻</label><input id="timeInput" type="time" /></div>
+      </div>
+      <details>
+        <summary>観測地を変更する</summary>
+        <div class="formrow three" style="margin-top:10px">
+          <div><label for="latInput">緯度</label><input id="latInput" inputmode="decimal" value="35.274461" /></div>
+          <div><label for="lonInput">経度</label><input id="lonInput" inputmode="decimal" value="136.259623" /></div>
+          <div><label for="elevInput">標高 m</label><input id="elevInput" inputmode="decimal" value="90" /></div>
+        </div>
+      </details>
+      <button id="calcBtn">計算する</button>
+      <div id="status" class="small" style="margin-top:8px"></div>
+      <div class="pwa-help">PWA化済みです。HTTPSで公開した後、iPhoneのSafariで開き「共有」→「ホーム画面に追加」でアプリ風に使えます。</div>
+    </section>
+
+    <div class="grid two">
+      <section class="card"><h2>天文薄明</h2><div id="twilightBox"></div></section>
+      <section class="card"><h2>月</h2><div id="moonBox"></div></section>
+    </div>    <section class="card">
+      <h2>指定天体の南中時間</h2>
+      <div class="small">「今夜の南中」は、夕方の天文薄明終了から翌朝の天文薄明開始までに南中する場合だけ表示します。夜間専用バーは18時〜翌6時の範囲で表示します。</div>
+      <div style="overflow-x:auto; margin-top:8px;">
+        <table>
+          <thead><tr><th>天体</th><th class="num">今日の南中</th><th class="num">南中高度</th><th class="num">今夜の南中</th><th>判定</th></tr></thead>
+          <tbody id="targetRows"></tbody>
+        </table>
+      </div>
+      <div class="section-label">南中前後2時間：夜間専用バー 18時〜翌6時</div>
+      <div id="targetBarLegend" class="legend"></div>
+      <div id="targetBarList" class="target-bar-list"></div>
+    </section>
+
+    
+
+    <section class="card">
+      <h2>所有機材でのおすすめ撮影天体</h2>
+      <div class="small">彦根の夜間18時〜翌6時、南中・高度、月明かりの影響をもとに、所有機材に合う対象を自動で並べます。</div>
+      <div id="gearTargetBox"></div>
+    </section>
+
+<section class="card">
+      <h2>メモ</h2>
+      <div class="small">天文薄明は太陽中心高度 -18°、月出・月没は大気差と視半径を考慮した近似です。恒星・星雲の座標はJ2000固定値なので、撮影計画用として使ってください。精密な掩蔽・接近現象の判定用ではありません。</div>
+    </section>
+
+    <div class="footer">Calculation: Astronomy Engine / Location default: Hikone, Shiga, Japan</div>
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/astronomy-engine@2.1.19/astronomy.browser.min.js"></script>
+  <script>
+    const TZ = 'Asia/Tokyo';
+    const A = window.Astronomy;
+    const NIGHT_START = 18 * 60;
+    const NIGHT_END = 30 * 60;
+
+    const TARGETS = [
+      { name: 'アンタレス', note: 'Antares', body: 'Star1', ra: hms(16, 29, 24.46), dec: dms(-26, 25, 55), dist: 550 },
+      { name: 'M8', note: '干潟星雲', body: 'Star2', ra: hms(18, 3, 37), dec: dms(-24, 23, 12), dist: 4100 },
+      { name: 'サドル', note: 'Sadr / γ Cyg', body: 'Star3', ra: hms(20, 22, 13.7), dec: dms(40, 15, 24), dist: 1800 },
+      { name: 'M31', note: 'アンドロメダ銀河', body: 'Star4', ra: hms(0, 42, 44.3), dec: dms(41, 16, 9), dist: 2500000 },
+      { name: 'リゲル', note: 'Rigel', body: 'Star5', ra: hms(5, 14, 32.27), dec: dms(-8, 12, 6), dist: 860 },
+      { name: 'シリウス', note: 'Sirius', body: 'Star6', ra: hms(6, 45, 8.92), dec: dms(-16, 42, 58), dist: 8.6 },
+      { name: 'IC1805', note: 'ハート星雲', body: 'Star7', ra: hms(2, 32, 42), dec: dms(61, 27, 0), dist: 7500 }
+    ];
+
+    const IMAGING_TARGETS = [
+      { name: 'M42', note: 'オリオン大星雲', body: 'Img1', ra: hms(5, 35, 17.3), dec: dms(-5, 23, 28), dist: 1350, type: '輝線星雲', moon: 'medium', gear: 'Askar103APO / FC-76DC + ASI2600MC。広めならFCT-65DやRedCat51', filter: '月明かりあり: L-eXtreme、暗夜: UV/IRまたはLPS-P2', reason: '明るく、月が多少あっても撮りやすい冬の主力対象' },
+      { name: 'IC434', note: '馬頭星雲', body: 'Img2', ra: hms(5, 41, 0), dec: dms(-2, 27, 0), dist: 1500, type: '輝線星雲', moon: 'high', gear: 'FCT-65D + 0.65× / RedCat51 + ASI2600MC', filter: 'L-eXtreme推奨', reason: 'Hαが強く、ナローバンドで月明かりに比較的強い' },
+      { name: 'NGC2237', note: 'バラ星雲', body: 'Img3', ra: hms(6, 31, 55), dec: dms(4, 56, 30), dist: 5200, type: '輝線星雲', moon: 'high', gear: 'FCT-65D + 0.65× / RedCat51 / FS-60CB + ASI2600MC', filter: 'L-eXtreme推奨', reason: 'ASI2600MCの広い画角と相性が良い大型星雲' },
+      { name: 'M45', note: 'プレアデス星団', body: 'Img4', ra: hms(3, 47, 24), dec: dms(24, 7, 0), dist: 444, type: '反射星雲・散開星団', moon: 'low', gear: 'RedCat51 / FS-60CB / FCT-65D + 0.65× + ASI2600MC またはα7II', filter: '暗夜・フィルター弱め推奨', reason: '青い反射星雲は月明かりが少ない夜に有利' },
+      { name: 'M31', note: 'アンドロメダ銀河', body: 'Img5', ra: hms(0, 42, 44.3), dec: dms(41, 16, 9), dist: 2500000, type: '銀河', moon: 'low', gear: 'RedCat51 / FCT-65D + 0.65× / FS-60CB + ASI2600MC', filter: '暗夜・ノーフィルターまたはLPS-P2', reason: '大型銀河で短焦点鏡筒と相性が良い' },
+      { name: 'M33', note: 'さんかく座銀河', body: 'Img6', ra: hms(1, 33, 50.9), dec: dms(30, 39, 37), dist: 2730000, type: '銀河', moon: 'low', gear: 'Askar103APO / FC-76DC / FCT-65D + ASI2600MC', filter: '暗夜・ノーフィルター推奨', reason: '淡い面光源なので月が少ない夜向き' },
+      { name: 'IC1805', note: 'ハート星雲', body: 'Img7', ra: hms(2, 32, 42), dec: dms(61, 27, 0), dist: 7500, type: '輝線星雲', moon: 'high', gear: 'FCT-65D + 0.65× / RedCat51 + ASI2600MC', filter: 'L-eXtreme推奨', reason: '大型Hα領域で、ナローバンド撮影に向く' },
+      { name: 'NGC7000', note: '北アメリカ星雲', body: 'Img8', ra: hms(20, 58, 54), dec: dms(44, 19, 0), dist: 2600, type: '輝線星雲', moon: 'high', gear: 'Samyang135mm / RedCat51 / FCT-65D + 0.65×', filter: 'L-eXtreme推奨', reason: '広いHα星雲で短焦点・広角構成に合う' },
+      { name: 'NGC6992', note: '網状星雲 東側', body: 'Img9', ra: hms(20, 56, 18), dec: dms(31, 43, 0), dist: 2400, type: '超新星残骸', moon: 'high', gear: 'RedCat51 / FCT-65D + 0.65× / Askar103APOレデューサー', filter: 'L-eXtreme推奨', reason: 'OIIIとHαが強く、デュアルナローバンドと好相性' },
+      { name: 'IC1396', note: 'ケフェウス座の散光星雲', body: 'Img10', ra: hms(21, 39, 6), dec: dms(57, 30, 0), dist: 2400, type: '輝線星雲', moon: 'high', gear: 'FCT-65D + 0.65× / RedCat51 / Samyang135mm', filter: 'L-eXtreme推奨', reason: '広い星雲で、短焦点とナローバンドが有利' },
+      { name: 'M8', note: '干潟星雲', body: 'Img11', ra: hms(18, 3, 37), dec: dms(-24, 23, 12), dist: 4100, type: '輝線星雲', moon: 'high', gear: 'FCT-65D + 0.65× / RedCat51 + ASI2600MC', filter: 'L-eXtreme推奨', reason: '低空だが明るく、夏の南天で狙いやすい' },
+      { name: 'M16', note: 'わし星雲', body: 'Img12', ra: hms(18, 18, 48), dec: dms(-13, 47, 0), dist: 5700, type: '輝線星雲', moon: 'high', gear: 'Askar103APO / FC-76DC + ASI2600MC', filter: 'L-eXtreme推奨', reason: '中焦点で構図を取りやすいHα対象' },
+      { name: 'M17', note: 'オメガ星雲', body: 'Img13', ra: hms(18, 20, 26), dec: dms(-16, 10, 36), dist: 5500, type: '輝線星雲', moon: 'high', gear: 'Askar103APO / FC-76DC / FCT-65D + ASI2600MC', filter: 'L-eXtreme推奨', reason: '明るい星雲で、月明かり下でも比較的狙いやすい' },
+      { name: 'M27', note: '亜鈴状星雲', body: 'Img14', ra: hms(19, 59, 36.3), dec: dms(22, 43, 16), dist: 1360, type: '惑星状星雲', moon: 'medium', gear: 'Askar103APO / FC-76DC + ASI2600MC、QHY23なら拡大向き', filter: 'L-eXtremeまたはデュアルバンド可', reason: '小さめだが明るく、長めの焦点距離が有利' },
+      { name: 'M13', note: 'ヘルクレス座球状星団', body: 'Img15', ra: hms(16, 41, 41.2), dec: dms(36, 27, 35), dist: 22000, type: '球状星団', moon: 'medium', gear: 'Askar103APO / FC-76DC / QHY23で拡大も可', filter: 'ノーフィルターまたはUV/IR', reason: '月があっても星団は比較的撮りやすい' },
+      { name: 'M51', note: '子持ち銀河', body: 'Img16', ra: hms(13, 29, 52.7), dec: dms(47, 11, 43), dist: 31000000, type: '銀河', moon: 'low', gear: 'Askar103APO / FC-76DC / QHY23。可能なら長焦点側', filter: '暗夜・ノーフィルター推奨', reason: '小さめの銀河なので月が少ない夜と長焦点が有利' },
+      { name: 'M101', note: '回転花火銀河', body: 'Img17', ra: hms(14, 3, 12.6), dec: dms(54, 20, 57), dist: 21000000, type: '銀河', moon: 'low', gear: 'Askar103APO / FC-76DC + ASI2600MC', filter: '暗夜・ノーフィルター推奨', reason: '淡い銀河なので月明かりが少ない夜向き' },
+      { name: 'Sh2-240', note: 'シメイズ147', body: 'Img18', ra: hms(5, 39, 0), dec: dms(28, 0, 0), dist: 3000, type: '超新星残骸', moon: 'high', gear: 'Samyang135mm / RedCat51 + ASI2600MC', filter: 'L-eXtreme推奨', reason: '非常に大きく淡いので広角・長時間向き' },
+      { name: 'Rho Oph', note: 'アンタレス周辺', body: 'Img19', ra: hms(16, 25, 0), dec: dms(-24, 30, 0), dist: 460, type: '反射星雲・暗黒星雲', moon: 'low', gear: 'Samyang135mm / RedCat51 / α7II', filter: '暗夜・ノーフィルター推奨', reason: '色彩豊かな領域だが月明かりに弱い' }
+    ];
+
+    function hms(h, m, s) { return h + m / 60 + s / 3600; }
+    function dms(deg, min, sec) { const sign = deg < 0 ? -1 : 1; return sign * (Math.abs(deg) + min / 60 + sec / 3600); }
+    function isFiniteNumber(x) { return Number.isFinite(x); }
+    function clamp(x, min, max) { return Math.min(max, Math.max(min, x)); }
+    function ymdJST(date = new Date()) {
+      const parts = new Intl.DateTimeFormat('en-CA', { timeZone: TZ, year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(date);
+      const get = t => parts.find(p => p.type === t).value;
+      return `${get('year')}-${get('month')}-${get('day')}`;
+    }
+    function hmJST(date = new Date()) {
+      const parts = new Intl.DateTimeFormat('ja-JP', { timeZone: TZ, hour: '2-digit', minute: '2-digit', hour12: false }).formatToParts(date);
+      const get = t => parts.find(p => p.type === t).value;
+      return `${get('hour')}:${get('minute')}`;
+    }
+    function makeJstDate(dateStr, timeStr = '00:00') { return new Date(`${dateStr}T${timeStr}:00+09:00`); }
+    function evtDate(value) {
+      if (!value) return null;
+      if (value instanceof Date) return value;
+      if (value.date instanceof Date) return value.date;
+      if (value.time && value.time.date instanceof Date) return value.time.date;
+      return null;
+    }
+    function fmtDateTime(value) {
+      const date = evtDate(value);
+      if (!date) return '—';
+      const parts = new Intl.DateTimeFormat('ja-JP', { timeZone: TZ, month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false }).formatToParts(date);
+      const get = t => parts.find(p => p.type === t).value;
+      return `${get('month')}/${get('day')} ${get('hour')}:${get('minute')}`;
+    }
+    function fmtTime(value) {
+      const date = evtDate(value);
+      if (!date) return '—';
+      const parts = new Intl.DateTimeFormat('ja-JP', { timeZone: TZ, hour: '2-digit', minute: '2-digit', hour12: false }).formatToParts(date);
+      const get = t => parts.find(p => p.type === t).value;
+      return `${get('hour')}:${get('minute')}`;
+    }
+    function clockLabel(minute) {
+      const m = ((Math.round(minute) % 1440) + 1440) % 1440;
+      const h = Math.floor(m / 60);
+      const mm = m % 60;
+      return `${String(h).padStart(2, '0')}:${String(mm).padStart(2, '0')}`;
+    }
+    function hourTickLabel(minute) {
+      const m = ((Math.round(minute) % 1440) + 1440) % 1440;
+      const h = Math.floor(m / 60);
+      return `${h}`;
+    }
+    function hoursBetween(a, b) {
+      const ad = evtDate(a), bd = evtDate(b);
+      if (!ad || !bd) return '—';
+      return `${((bd - ad) / 36e5).toFixed(1)}時間`;
+    }
+    function kv(k, v, cls = '') { return `<div class="kv"><div class="k">${k}</div><div class="v ${cls}">${v}</div></div>`; }
+    function phaseName(angle) {
+      const names = ['新月付近', '三日月〜上弦前', '上弦付近', '十三夜〜満月前', '満月付近', '満月後〜下弦前', '下弦付近', '有明月〜新月前'];
+      return names[Math.floor(((angle + 22.5) % 360) / 45)];
+    }
+    function moonEmoji(angle) {
+      const icons = ['🌑', '🌒', '🌓', '🌔', '🌕', '🌖', '🌗', '🌘'];
+      return icons[Math.floor(((angle + 22.5) % 360) / 45)];
+    }
+    function judge(nightTransit, darkEnd, altitude) {
+      const nt = evtDate(nightTransit), de = evtDate(darkEnd);
+      if (!nt || !de || nt > de) return '<span class="pill">今夜は南中なし</span>';
+      if (altitude >= 35) return '<span class="pill ok">好条件</span>';
+      if (altitude >= 20) return '<span class="pill warn">低空注意</span>';
+      if (altitude > 0) return '<span class="pill warn">かなり低い</span>';
+      return '<span class="pill bad">地平線下</span>';
+    }
+    function minutesFromDayStart(value, dayStart) {
+      const date = evtDate(value);
+      if (!date) return null;
+      return (date - dayStart) / 60000;
+    }
+    function addSegment(list, start, end, cls) {
+      if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start) return;
+      list.push({ start, end, cls });
+    }
+    function clippedSegments(segments, rangeStart, rangeEnd) {
+      return segments.map(s => ({ start: clamp(s.start, rangeStart, rangeEnd), end: clamp(s.end, rangeStart, rangeEnd), cls: s.cls })).filter(s => s.end > s.start);
+    }
+    function markerHtml(minute, label, rangeStart, rangeEnd) {
+      if (!Number.isFinite(minute) || minute < rangeStart || minute > rangeEnd) return '';
+      const left = clamp((minute - rangeStart) / (rangeEnd - rangeStart) * 100, 0, 100);
+      return `<div class="marker" style="left: calc(${left}% - 1px)" title="${label || ''}"></div>`;
+    }
+    function renderRangeBar(segments, markers = [], rangeStart = 0, rangeEnd = 1440, tickMinutes = 180, showMarkerLabels = true) {
+      const clipped = clippedSegments(segments, rangeStart, rangeEnd);
+      const segHtml = clipped.map(s => {
+        const left = clamp((s.start - rangeStart) / (rangeEnd - rangeStart) * 100, 0, 100);
+        const width = clamp((s.end - s.start) / (rangeEnd - rangeStart) * 100, 0, 100);
+        return `<div class="seg ${s.cls}" style="left:${left}%; width:${width}%"></div>`;
+      }).join('');
+      const ticks = [];
+      const firstTick = Math.ceil(rangeStart / tickMinutes) * tickMinutes;
+      for (let m = firstTick; m <= rangeEnd + 0.1; m += tickMinutes) ticks.push(m);
+      const gridHtml = ticks.map(m => `<div class="gridline" style="left:${clamp((m - rangeStart) / (rangeEnd - rangeStart) * 100, 0, 100)}%"></div>`).join('');
+      const scaleHtml = ticks.map(m => `<span class="tick-label" style="left:${clamp((m - rangeStart) / (rangeEnd - rangeStart) * 100, 0, 100)}%">${hourTickLabel(m)}</span>`).join('');
+      const markHtml = markers.map(m => markerHtml(m.minute, m.label, rangeStart, rangeEnd)).join('');
+      const markerLabelHtml = showMarkerLabels ? markers.map(m => {
+        if (!Number.isFinite(m.minute) || m.minute < rangeStart || m.minute > rangeEnd) return '';
+        return `<span class="marker-label" style="left:${clamp((m.minute - rangeStart) / (rangeEnd - rangeStart) * 100, 0, 100)}%">${clockLabel(m.minute)}</span>`;
+      }).join('') : '';
+      return `<div class="timeline"><div class="bar-wrap">${markerLabelHtml}<div class="bar24">${gridHtml}${segHtml}${markHtml}</div></div><div class="timeline-scale-dense">${scaleHtml}</div></div>`;
+    }
+    function renderLegend(type) {
+      if (type === 'twilight') return `<div class="legend"><span class="legend-item"><span class="swatch day"></span>昼</span><span class="legend-item"><span class="swatch twilight"></span>天文薄明</span><span class="legend-item"><span class="swatch dark"></span>暗い時間</span></div>`;
+      if (type === 'moon') return `<div class="legend"><span class="legend-item"><span class="swatch moonup"></span>月が出ている時間</span></div>`;
+      return `<span class="legend-item"><span class="swatch target"></span>南中前後2時間</span>`;
+    }
+    function altitudeOf(body, obs, date) {
+      try {
+        const eq = A.Equator(body, date, obs, true, true);
+        const hor = A.Horizon(date, obs, eq.ra, eq.dec, 'normal');
+        return hor.altitude;
+      } catch (e) { return null; }
+    }
+    function bodyUpSegments(body, obs, rangeStartDate, rangeEndDate, dayStart, cls) {
+      const durationDays = (rangeEndDate - rangeStartDate) / 86400000;
+      const rise = A.SearchRiseSet(body, obs, +1, rangeStartDate, durationDays, 0);
+      const set = A.SearchRiseSet(body, obs, -1, rangeStartDate, durationDays, 0);
+      const rangeStartMin = (rangeStartDate - dayStart) / 60000;
+      const rangeEndMin = (rangeEndDate - dayStart) / 60000;
+      const events = [];
+      const riseMin = minutesFromDayStart(rise, dayStart);
+      const setMin = minutesFromDayStart(set, dayStart);
+      if (Number.isFinite(riseMin) && riseMin >= rangeStartMin && riseMin <= rangeEndMin) events.push({ t: riseMin, type: 'rise' });
+      if (Number.isFinite(setMin) && setMin >= rangeStartMin && setMin <= rangeEndMin) events.push({ t: setMin, type: 'set' });
+      events.sort((a, b) => a.t - b.t);
+      let upAtStart = false;
+      const alt = altitudeOf(body, obs, rangeStartDate);
+      if (alt !== null) upAtStart = alt > 0;
+      else if (events.length && events[0].type === 'set') upAtStart = true;
+      const segs = [];
+      let isUp = upAtStart;
+      let segStart = isUp ? rangeStartMin : null;
+      for (const e of events) {
+        if (e.type === 'rise' && !isUp) { isUp = true; segStart = e.t; }
+        else if (e.type === 'set' && isUp) { addSegment(segs, segStart, e.t, cls); isUp = false; segStart = null; }
+      }
+      if (isUp) addSegment(segs, segStart ?? rangeStartMin, rangeEndMin, cls);
+      return { segments: segs, rise, set };
+    }
+    function overlapMinutes(a, b) {
+      let total = 0;
+      for (const x of a) for (const y of b) {
+        const s = Math.max(x.start, y.start), e = Math.min(x.end, y.end);
+        if (e > s) total += e - s;
+      }
+      return total;
+    }
+    function observationAdvice(illum, moonDarkOverlap, darkMinutes) {
+      const ratio = darkMinutes > 0 ? moonDarkOverlap / darkMinutes : 0;
+      const influence = illum * ratio;
+      const overlapHours = (moonDarkOverlap / 60).toFixed(1);
+      const darkHours = (darkMinutes / 60).toFixed(1);
+      if (moonDarkOverlap < 20 || influence < 8) return { cls: 'ok', title: '観測向き：かなり良い', text: `暗夜中に月が出る影響は小さめです。暗夜 ${darkHours}時間のうち、月の影響時間は約${overlapHours}時間です。` };
+      if (influence < 25) return { cls: 'ok', title: '観測向き：良い', text: `輝面率は${illum.toFixed(0)}%ですが、暗夜中の月の影響は限定的です。淡い星雲・銀河も月から離せば狙えます。` };
+      if (influence < 50) return { cls: 'warn', title: '観測向き：月明かり注意', text: `輝面率${illum.toFixed(0)}%で、暗夜中の月出時間が約${overlapHours}時間あります。淡い対象は月没後、または月から離れた空がおすすめです。` };
+      return { cls: 'bad', title: '観測向き：月明かり強め', text: `輝面率${illum.toFixed(0)}%で、暗夜中も月の影響が大きいです。ナローバンド、星団、月・惑星、明るい対象向きです。` };
+    }
+    function difficultyLabel(level) {
+      if (level === 'easy') return { text: '観測難易度：やさしい', cls: 'easy' };
+      if (level === 'medium') return { text: '観測難易度：ふつう', cls: 'medium' };
+      return { text: '観測難易度：やや難しい', cls: 'hard' };
+    }
+    function moonSpotDiagramSvg(x, y, level) {
+      const color = level === 'easy' ? '#9be7b3' : (level === 'medium' ? '#ffd166' : '#ff9b9b');
+      return `<svg width="56" height="56" viewBox="0 0 56 56" aria-hidden="true"><circle cx="28" cy="28" r="22" fill="#e3c35c" opacity="0.95"/><circle cx="21" cy="20" r="5" fill="#d8b455" opacity="0.55"/><circle cx="34" cy="17" r="4" fill="#d8b455" opacity="0.45"/><circle cx="18" cy="34" r="6" fill="#d8b455" opacity="0.40"/><circle cx="36" cy="35" r="5" fill="#d8b455" opacity="0.42"/><line x1="${x}" y1="6" x2="${x}" y2="50" stroke="${color}" stroke-width="1.6" opacity="0.9"/><line x1="6" y1="${y}" x2="50" y2="${y}" stroke="${color}" stroke-width="1.6" opacity="0.9"/><circle cx="${x}" cy="${y}" r="4.2" fill="none" stroke="${color}" stroke-width="2.4"/><circle cx="${x}" cy="${y}" r="1.7" fill="${color}"/></svg>`;
+    }
+    function moonSpotRecommendations(age) {
+      let items = [];
+      if (age < 2 || age >= 27.5) {
+        items = [
+          { name: '地球照', desc: '細い月の暗部が淡く見え、月全体の輪郭を楽しめます。', extra: '双眼鏡でも楽しみやすい観察対象です。', level: 'easy', x: 28, y: 28 },
+          { name: 'マーレ・クリシウム', desc: '細い月でも見つけやすい東側の丸い海です。', extra: '縁に近い孤立した海なので位置を覚えやすいです。', level: 'easy', x: 41, y: 20 },
+          { name: 'ラングレヌス / ペタビウス', desc: '欠け際に近く、陰影で立体感が出やすいクレーター群です。', extra: 'やや低倍率でも凹凸が分かります。', level: 'medium', x: 39, y: 33 }
+        ];
+      } else if (age < 5) {
+        items = [
+          { name: 'マーレ・クリシウム', desc: '東側で目立ちやすく、月齢初期の定番です。', extra: 'まず最初に探しやすい海です。', level: 'easy', x: 41, y: 20 },
+          { name: 'ラングレヌス', desc: '中央丘が見やすい大型クレーターです。', extra: 'クレーターらしい形が分かりやすいです。', level: 'easy', x: 38, y: 34 },
+          { name: 'テオフィルス / キリルス', desc: '双子のように並び、影が美しい領域です。', extra: '見比べると月面地形の違いが分かります。', level: 'medium', x: 35, y: 36 }
+        ];
+      } else if (age < 8.5) {
+        items = [
+          { name: 'コペルニクス', desc: '明瞭な輪郭で見応えがある代表的クレーターです。', extra: '初めてのクレーター観察にも向きます。', level: 'easy', x: 24, y: 26 },
+          { name: 'アペニン山脈', desc: '山脈の陰影が伸び、立体感がよく出ます。', extra: '上弦前後に特に迫力があります。', level: 'medium', x: 27, y: 22 },
+          { name: 'プラトー / アルプス谷', desc: '上弦前後に観察しやすい人気スポットです。', extra: '谷を見分けるにはやや高倍率が有利です。', level: 'hard', x: 25, y: 15 }
+        ];
+      } else if (age < 11.5) {
+        items = [
+          { name: '直線壁（Rupes Recta）', desc: '月齢9日前後の名所で、細長い崖が目立ちます。', extra: '条件が良いと真っすぐな影として見えます。', level: 'medium', x: 24, y: 36 },
+          { name: 'プトレマイオス / アルフォンスス / アルザケル', desc: '大クレーター群の比較観察に向きます。', extra: '並んだクレーターの大きさ比較が楽しいです。', level: 'easy', x: 26, y: 32 },
+          { name: 'コーカサス山脈', desc: '明暗境界で起伏が分かりやすい山脈です。', extra: '山脈らしい連なりが感じられます。', level: 'medium', x: 29, y: 18 }
+        ];
+      } else if (age < 14.5) {
+        items = [
+          { name: 'ティコ', desc: '南部で目立つ明るいクレーターです。', extra: '満月近くでも存在感があります。', level: 'easy', x: 26, y: 42 },
+          { name: 'クラビウス', desc: '南部の巨大クレーターで見応えがあります。', extra: '内部の連なる小クレーターが見どころです。', level: 'medium', x: 19, y: 43 },
+          { name: 'ガッサンディ', desc: '内部構造が豊かなクレーターです。', extra: '床の割れ目が見えると面白い対象です。', level: 'hard', x: 17, y: 34 }
+        ];
+      } else if (age < 18) {
+        items = [
+          { name: 'ティコの光条', desc: '満月過ぎは四方へ伸びる光条が見やすくなります。', extra: '月面全体を見ると模様として楽しめます。', level: 'easy', x: 26, y: 42 },
+          { name: 'コペルニクスの光条', desc: 'コペルニクスから広がる光条も印象的です。', extra: '低倍率で月全体を見ると分かりやすいです。', level: 'easy', x: 24, y: 26 },
+          { name: '月の海の分布', desc: 'コントラストが高く、海の形を覚えるのに向きます。', extra: '双眼鏡でも十分楽しめます。', level: 'easy', x: 28, y: 28 }
+        ];
+      } else if (age < 22) {
+        items = [
+          { name: 'アリスタルコス / ヘロドトス', desc: '明るく目立つ西側の人気スポットです。', extra: '明るさの差が分かりやすい組み合わせです。', level: 'easy', x: 16, y: 21 },
+          { name: 'グリマルディ', desc: '暗い床を持つ大型クレーターです。', extra: '西縁寄りの黒っぽい斑点として見つかります。', level: 'easy', x: 11, y: 32 },
+          { name: 'ケプラー', desc: '西寄りで陰影が出やすいクレーターです。', extra: 'アリスタルコスと合わせて見比べると面白いです。', level: 'medium', x: 18, y: 27 }
+        ];
+      } else if (age < 26) {
+        items = [
+          { name: 'ガッサンディ', desc: '欠け際に近く再び見やすくなります。', extra: '位相が変わると表情の違いが楽しめます。', level: 'medium', x: 17, y: 34 },
+          { name: '湿りの海（Mare Humorum）', desc: '周囲の地形と合わせて楽しめる丸い海です。', extra: '海の輪郭が比較的分かりやすいです。', level: 'easy', x: 16, y: 36 },
+          { name: 'シッカード', desc: '大型で独特な床模様を持つクレーターです。', extra: 'やや地味ですが、見慣れると面白い対象です。', level: 'hard', x: 13, y: 38 }
+        ];
+      } else {
+        items = [
+          { name: 'ペタビウス', desc: '明け方の細い月で再び狙いやすい大型クレーターです。', extra: '中央部の構造が見どころです。', level: 'medium', x: 37, y: 35 },
+          { name: 'フンボルト', desc: '東縁の大きなクレーターです。', extra: '縁近くの地形観察に向きます。', level: 'hard', x: 42, y: 28 },
+          { name: '地球照', desc: '細い有明月なら暗部の様子も楽しめます。', extra: '双眼鏡での全体観察にも向きます。', level: 'easy', x: 28, y: 28 }
+        ];
+      }
+      const northItems = items.filter(item => item.y <= 28);
+      const southItems = items.filter(item => item.y > 28);
+      const renderGroup = (groupTitle, arr) => {
+        if (!arr.length) return '';
+        return `<div class="moon-spot-group-title">${groupTitle}</div><div class="moon-spot-cards">${arr.map(item => {
+          const diff = difficultyLabel(item.level);
+          return `<div class="moon-spot-card"><div class="moon-diagram">${moonSpotDiagramSvg(item.x, item.y, item.level)}</div><div><div class="moon-spot-name">${item.name}<span class="difficulty ${diff.cls}">${diff.text}</span></div><div class="moon-spot-desc">${item.desc}</div><div class="moon-spot-extra">${item.extra}</div></div></div>`;
+        }).join('')}</div>`;
+      };
+      return `<div class="moon-spots-title">今日のおすすめ月面スポット</div><div class="moon-spots-note">位置図は月面のだいたいの場所を示す簡易図です。鏡像・上下反転では見え方が変わります。</div>${renderGroup('北側のおすすめスポット', northItems)}${renderGroup('南側のおすすめスポット', southItems)}`;
+    }
+    function moonSuitabilityLabel(target, illum, moonDarkOverlap, darkMinutes) {
+      const moonRatio = darkMinutes > 0 ? moonDarkOverlap / darkMinutes : 0;
+      const influence = illum * moonRatio;
+      if (target.moon === 'high') return influence > 45 ? '月あり可：ナローバンド推奨' : '月ありでも狙いやすい';
+      if (target.moon === 'medium') return influence > 45 ? '月明かり注意' : '月が少なければ良好';
+      return influence > 25 ? '暗夜推奨' : '月の影響小';
+    }
+    function moonPenaltyForTarget(target, illum, moonDarkOverlap, darkMinutes) {
+      const moonRatio = darkMinutes > 0 ? moonDarkOverlap / darkMinutes : 0;
+      const influence = illum * moonRatio;
+      if (target.moon === 'high') return influence * 0.10;
+      if (target.moon === 'medium') return influence * 0.25;
+      return influence * 0.55;
+    }
+    function altitudeFromRaDec(ra, dec, obs, date) {
+      try {
+        const hor = A.Horizon(date, obs, ra, dec, 'normal');
+        return hor.altitude;
+      } catch (e) {
+        return NaN;
+      }
+    }
+    function bestAltitudeDuringNightRaDec(target, obs, dayStart) {
+      let best = { altitude: -99, minute: NIGHT_START };
+      for (let m = NIGHT_START; m <= NIGHT_END; m += 30) {
+        const date = new Date(dayStart.getTime() + m * 60000);
+        const alt = altitudeFromRaDec(target.ra, target.dec, obs, date);
+        if (Number.isFinite(alt) && alt > best.altitude) best = { altitude: alt, minute: m };
+      }
+      return best;
+    }
+    function renderImagingRecommendations(obs, dayStart, eveningAst, nextMorningAst, illum, moonDarkOverlap, darkMinutes) {
+      const items = IMAGING_TARGETS.map(t => {
+        const best = bestAltitudeDuringNightRaDec(t, obs, dayStart);
+        const darkStartMin = minutesFromDayStart(eveningAst, dayStart);
+        const darkEndMin = minutesFromDayStart(nextMorningAst, dayStart);
+        const bestInDark = Number.isFinite(darkStartMin) && Number.isFinite(darkEndMin) && best.minute >= darkStartMin && best.minute <= darkEndMin;
+        const altScore = Math.max(0, best.altitude);
+        const typeBonus = t.moon === 'high' ? 8 : 0;
+        const score = altScore + (bestInDark ? 12 : 0) + typeBonus - moonPenaltyForTarget(t, illum, moonDarkOverlap, darkMinutes);
+        return { ...t, best, bestInDark, score };
+      }).filter(t => t.best.altitude >= 12)
+        .sort((a, b) => b.score - a.score)
+        .slice(0, 8);
+
+      if (!items.length) return `<div class="small" style="margin-top:10px">今夜18時〜翌6時に高度12°以上になる候補が見つかりませんでした。</div>`;
+      const cards = items.map(t => {
+        const altClass = t.best.altitude >= 45 ? 'ok' : (t.best.altitude >= 25 ? 'warn' : 'bad');
+        const darkText = t.bestInDark ? '暗夜時間内' : '薄明・月明かり注意';
+        return `<div class="gear-rec-card">
+          <div class="gear-rec-head">
+            <div><div class="gear-rec-title">${t.name} <span class="small">${t.note}</span></div><div class="gear-rec-meta">${t.type} / 最適目安 ${clockLabel(t.best.minute)} / 最高高度 <span class="${altClass}">${t.best.altitude.toFixed(1)}°</span> / ${darkText}</div></div>
+            <div class="gear-rec-score">おすすめ度 ${Math.round(t.score)}</div>
+          </div>
+          <div class="gear-tags"><span class="gear-tag">${moonSuitabilityLabel(t, illum, moonDarkOverlap, darkMinutes)}</span><span class="gear-tag">推奨フィルター: ${t.filter}</span></div>
+          <div class="gear-rec-reason"><strong>推奨機材:</strong> ${t.gear}</div>
+          <div class="gear-rec-reason"><strong>理由:</strong> ${t.reason}</div>
+        </div>`;
+      }).join('');
+      return `<div class="gear-rec-list">${cards}</div>`;
+    }
+    function defineTargets() { TARGETS.forEach(t => A.DefineStar(t.body, t.ra, t.dec, t.dist)); }
+    function registerPwa() {
+      if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
+        navigator.serviceWorker.register('./sw.js').catch(() => {});
+      }
+    }
+
+    function calculate() {
+      const status = document.getElementById('status');
+      try {
+      if (!A) {
+        status.innerHTML = '<span class="error">Astronomy Engineを読み込めません。通信状態を確認してください。</span>';
+        return;
+      }
+      defineTargets();
+
+      const dateStr = document.getElementById('dateInput').value || ymdJST();
+      const timeStr = document.getElementById('timeInput').value || hmJST();
+      const lat = parseFloat(document.getElementById('latInput').value);
+      const lon = parseFloat(document.getElementById('lonInput').value);
+      const elev = parseFloat(document.getElementById('elevInput').value);
+      if (![lat, lon, elev].every(isFiniteNumber)) {
+        status.innerHTML = '<span class="error">緯度・経度・標高を数値で入力してください。</span>';
+        return;
+      }
+
+      const obs = new A.Observer(lat, lon, elev);
+      const dayStart = makeJstDate(dateStr, '00:00');
+      const baseTime = makeJstDate(dateStr, timeStr);
+      const nightStartDate = new Date(dayStart.getTime() + NIGHT_START * 60000);
+      const nightEndDate = new Date(dayStart.getTime() + NIGHT_END * 60000);
+
+      const morningAst = A.SearchAltitude('Sun', obs, +1, dayStart, 1, -18);
+      const eveningAst = A.SearchAltitude('Sun', obs, -1, dayStart, 1, -18);
+      const nextMorningAst = evtDate(eveningAst) ? A.SearchAltitude('Sun', obs, +1, evtDate(eveningAst), 1.5, -18) : null;
+      const sunrise = A.SearchRiseSet('Sun', obs, +1, dayStart, 1, 0);
+      const sunset = A.SearchRiseSet('Sun', obs, -1, dayStart, 1, 0);
+      const nextSunrise = evtDate(nextMorningAst) ? A.SearchRiseSet('Sun', obs, +1, evtDate(nextMorningAst), 1, 0) : null;
+
+      const morningAstMin = minutesFromDayStart(morningAst, dayStart);
+      const sunriseMin = minutesFromDayStart(sunrise, dayStart);
+      const sunsetMin = minutesFromDayStart(sunset, dayStart);
+      const eveningAstMin = minutesFromDayStart(eveningAst, dayStart);
+      const nextMorningAstMin = minutesFromDayStart(nextMorningAst, dayStart);
+      const nextSunriseMin = minutesFromDayStart(nextSunrise, dayStart);
+
+      const twilightSegments24 = [{ start: 0, end: 1440, cls: 'day' }];
+      addSegment(twilightSegments24, 0, morningAstMin, 'dark');
+      addSegment(twilightSegments24, morningAstMin, sunriseMin, 'twilight');
+      addSegment(twilightSegments24, sunsetMin, eveningAstMin, 'twilight');
+      addSegment(twilightSegments24, eveningAstMin, 1440, 'dark');
+
+      const twilightSegmentsNight = [{ start: NIGHT_START, end: NIGHT_END, cls: 'day' }];
+      addSegment(twilightSegmentsNight, sunsetMin, eveningAstMin, 'twilight');
+      addSegment(twilightSegmentsNight, eveningAstMin, nextMorningAstMin, 'dark');
+      addSegment(twilightSegmentsNight, nextMorningAstMin, nextSunriseMin, 'twilight');
+      const darkSegmentsNight = [{ start: eveningAstMin, end: nextMorningAstMin, cls: 'dark' }];
+
+      document.getElementById('twilightBox').innerHTML =
+        kv('朝の天文薄明開始', fmtDateTime(morningAst)) +
+        kv('日の出', fmtDateTime(sunrise)) +
+        kv('日の入り', fmtDateTime(sunset)) +
+        kv('夕方の天文薄明終了', fmtDateTime(eveningAst), 'big') +
+        kv('今夜の暗夜時間', `${fmtDateTime(eveningAst)} → ${fmtDateTime(nextMorningAst)}`) +
+        kv('暗夜の長さ', hoursBetween(eveningAst, nextMorningAst), 'ok') +
+        `<div class="section-label">夜間専用バー 18時〜翌6時</div>` +
+        renderRangeBar(twilightSegmentsNight, [{ minute: eveningAstMin, label: '薄明終了' }, { minute: nextMorningAstMin, label: '薄明開始' }], NIGHT_START, NIGHT_END, 60, true) +
+        renderLegend('twilight');
+
+      const moonrise = A.SearchRiseSet('Moon', obs, +1, dayStart, 1, 0);
+      const moonset = A.SearchRiseSet('Moon', obs, -1, dayStart, 1, 0);
+      const moonTransit = A.SearchHourAngle('Moon', obs, 0, dayStart, +1);
+      const phase = A.MoonPhase(baseTime);
+      const prevNew = A.SearchMoonPhase(0, baseTime, -30);
+      const age = prevNew ? (baseTime - evtDate(prevNew)) / 86400000 : phase / 360 * 29.530588853;
+      const illum = (1 - Math.cos(phase * Math.PI / 180)) * 50;
+      const moonDay = bodyUpSegments('Moon', obs, dayStart, new Date(dayStart.getTime() + 1440 * 60000), dayStart, 'moonup');
+      const moonNight = bodyUpSegments('Moon', obs, nightStartDate, nightEndDate, dayStart, 'moonup');
+      const moonDarkOverlap = overlapMinutes(moonNight.segments, darkSegmentsNight);
+      const darkMinutes = overlapMinutes([{ start: NIGHT_START, end: NIGHT_END }], darkSegmentsNight);
+      const advice = observationAdvice(illum, moonDarkOverlap, darkMinutes);
+
+      document.getElementById('moonBox').innerHTML =
+        `<div class="moon-visual"><div class="moon-icon-box"><div class="moon-emoji">${moonEmoji(phase)}</div></div><div class="moon-phase-text"><div class="bigline">月齢 ${age.toFixed(1)}日</div><div>${phaseName(phase)}</div><div class="subline">輝面率 ${illum.toFixed(0)}% / 基準 ${dateStr} ${timeStr} JST</div></div></div>` +
+        `<div class="advice ${advice.cls}"><strong>${advice.title}</strong><br>${advice.text}</div>` +
+        kv('月の出', fmtDateTime(moonrise)) +
+        kv('月の入り', fmtDateTime(moonset)) +
+        kv('月の南中', `${fmtDateTime(moonTransit)} / 高度 ${(moonTransit && moonTransit.hor) ? moonTransit.hor.altitude.toFixed(1) : '—'}°`) +
+        moonSpotRecommendations(age) +
+        `<div class="section-label">月が出ている時間帯：夜間専用バー 18時〜翌6時</div>` +
+        renderRangeBar(moonNight.segments, [{ minute: minutesFromDayStart(moonNight.rise, dayStart), label: '月の出' }, { minute: minutesFromDayStart(moonNight.set, dayStart), label: '月の入り' }], NIGHT_START, NIGHT_END, 60, true) +
+        renderLegend('moon');
+
+      const rows = [];
+      const targetBars = [];
+      for (const t of TARGETS) {
+        const transit = A.SearchHourAngle(t.body, obs, 0, dayStart, +1);
+        const nightTransit = evtDate(eveningAst) ? A.SearchHourAngle(t.body, obs, 0, evtDate(eveningAst), +1) : null;
+        const nightTransitDate = evtDate(nightTransit);
+        const nextMorningDate = evtDate(nextMorningAst);
+        const hasNightTransit = !!(nightTransitDate && nextMorningDate && nightTransitDate <= nextMorningDate);
+        const nightText = hasNightTransit ? fmtDateTime(nightTransit) : '—';
+        const altitude = transit && transit.hor ? transit.hor.altitude : NaN;
+
+        rows.push(`<tr><td><strong>${t.name}</strong><br><span class="small">${t.note}</span></td><td class="num">${fmtDateTime(transit)}</td><td class="num">${Number.isFinite(altitude) ? altitude.toFixed(1) : '—'}°</td><td class="num">${nightText}</td><td>${judge(nightTransit, nextMorningAst, altitude)}</td></tr>`);
+
+        const barBase = hasNightTransit ? nightTransit : transit;
+        const barMinute = minutesFromDayStart(barBase, dayStart);
+        const barAltitude = barBase && barBase.hor ? barBase.hor.altitude : altitude;
+        const segs = [];
+        addSegment(segs, barMinute - 120, barMinute + 120, 'target');
+        const overlap = overlapMinutes(segs, [{ start: NIGHT_START, end: NIGHT_END }]);
+
+        targetBars.push(`<div class="target-item"><div class="target-head"><div><div class="target-name">${t.name}</div><div class="small">${t.note}</div></div><div class="target-meta">${hasNightTransit ? '今夜の南中' : '今日の南中'} ${fmtTime(barBase)}<br>高度 ${Number.isFinite(barAltitude) ? barAltitude.toFixed(1) : '—'}°</div></div>${renderRangeBar(segs, [{ minute: barMinute, label: `${t.name} 南中` }], NIGHT_START, NIGHT_END, 60, true)}${overlap <= 0 ? '<div class="small" style="margin-top:4px">南中前後2時間は、この夜間バー範囲外です。</div>' : ''}</div>`);
+      }
+      document.getElementById('targetRows').innerHTML = rows.join('');
+      document.getElementById('targetBarLegend').innerHTML = renderLegend('target');
+      document.getElementById('targetBarList').innerHTML = targetBars.join('');
+      document.getElementById('gearTargetBox').innerHTML = renderImagingRecommendations(obs, dayStart, eveningAst, nextMorningAst, illum, moonDarkOverlap, darkMinutes);
+      status.textContent = `計算完了: ${dateStr} / 観測地 ${lat.toFixed(5)}, ${lon.toFixed(5)}, ${elev.toFixed(0)}m`;
+      } catch (err) {
+        console.error(err);
+        status.innerHTML = `<span class="error">計算中にエラーが発生しました: ${err && err.message ? err.message : err}</span>`;
+      }
+    }
+
+    function init() {
+      document.getElementById('dateInput').value = ymdJST();
+      document.getElementById('timeInput').value = hmJST();
+      document.getElementById('calcBtn').addEventListener('click', calculate);
+      ['dateInput','timeInput','latInput','lonInput','elevInput'].forEach(id => document.getElementById(id).addEventListener('change', calculate));
+      registerPwa();
+      calculate();
+    }
+    window.addEventListener('load', init);
+  </script>
+</body>
+</html>
