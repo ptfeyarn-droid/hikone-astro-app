@@ -29,6 +29,7 @@
       --dark: #202a49;
       --moonup: #b8d2ff;
       --target: #7eb8ff;
+      --planet: #d6a4ff;
       --gridline: rgba(255,255,255,.14);
     }
     * { box-sizing: border-box; }
@@ -104,6 +105,7 @@
     .swatch.dark { background: var(--dark); }
     .swatch.moonup { background: var(--moonup); }
     .swatch.target { background: var(--target); }
+    .swatch.planet { background: var(--planet); }
     .timeline { margin-top: 6px; }
     .bar-wrap { position: relative; padding-top: 19px; }
     .bar24 {
@@ -121,6 +123,7 @@
     .seg.dark { background: var(--dark); }
     .seg.moonup { background: var(--moonup); }
     .seg.target { background: var(--target); }
+    .seg.planet { background: var(--planet); }
     .gridline { position: absolute; top: 0; bottom: 0; width: 1px; background: var(--gridline); z-index: 2; }
     .marker { position: absolute; top: -3px; bottom: -3px; width: 2px; background: rgba(255,255,255,.96); box-shadow: 0 0 0 1px rgba(0,0,0,.2); z-index: 4; }
     .marker-label { position: absolute; top: 0; transform: translateX(-50%); font-size: .66rem; color: var(--muted); white-space: nowrap; max-width: 66px; overflow: hidden; text-overflow: ellipsis; }
@@ -194,7 +197,13 @@
     <div class="grid two">
       <section class="card"><h2>天文薄明</h2><div id="twilightBox"></div></section>
       <section class="card"><h2>月</h2><div id="moonBox"></div></section>
-    </div>    <section class="card">
+    </div>
+
+    <section class="card">
+      <h2>惑星の見ごろ時間</h2>
+      <div class="small">金星・木星・火星・土星について、18時〜翌6時の間で最も高度が高い時刻を「見ごろ」として表示します。バーは高度10°以上の時間帯です。</div>
+      <div id="planetBox"></div>
+    </section>    <section class="card">
       <h2>指定天体の南中時間</h2>
       <div class="small">「今夜の南中」は、夕方の天文薄明終了から翌朝の天文薄明開始までに南中する場合だけ表示します。夜間専用バーは18時〜翌6時の範囲で表示します。</div>
       <div style="overflow-x:auto; margin-top:8px;">
@@ -261,6 +270,13 @@
       { name: 'M101', note: '回転花火銀河', body: 'Img17', ra: hms(14, 3, 12.6), dec: dms(54, 20, 57), dist: 21000000, type: '銀河', moon: 'low', gear: 'Askar103APO / FC-76DC + ASI2600MC', filter: '暗夜・ノーフィルター推奨', reason: '淡い銀河なので月明かりが少ない夜向き' },
       { name: 'Sh2-240', note: 'シメイズ147', body: 'Img18', ra: hms(5, 39, 0), dec: dms(28, 0, 0), dist: 3000, type: '超新星残骸', moon: 'high', gear: 'Samyang135mm / RedCat51 + ASI2600MC', filter: 'L-eXtreme推奨', reason: '非常に大きく淡いので広角・長時間向き' },
       { name: 'Rho Oph', note: 'アンタレス周辺', body: 'Img19', ra: hms(16, 25, 0), dec: dms(-24, 30, 0), dist: 460, type: '反射星雲・暗黒星雲', moon: 'low', gear: 'Samyang135mm / RedCat51 / α7II', filter: '暗夜・ノーフィルター推奨', reason: '色彩豊かな領域だが月明かりに弱い' }
+    ];
+
+    const PLANETS = [
+      { name: '金星', note: 'Venus', body: 'Venus' },
+      { name: '木星', note: 'Jupiter', body: 'Jupiter' },
+      { name: '火星', note: 'Mars', body: 'Mars' },
+      { name: '土星', note: 'Saturn', body: 'Saturn' }
     ];
 
     function hms(h, m, s) { return h + m / 60 + s / 3600; }
@@ -371,6 +387,7 @@
     function renderLegend(type) {
       if (type === 'twilight') return `<div class="legend"><span class="legend-item"><span class="swatch day"></span>昼</span><span class="legend-item"><span class="swatch twilight"></span>天文薄明</span><span class="legend-item"><span class="swatch dark"></span>暗い時間</span></div>`;
       if (type === 'moon') return `<div class="legend"><span class="legend-item"><span class="swatch moonup"></span>月が出ている時間</span></div>`;
+      if (type === 'planet') return `<div class="legend"><span class="legend-item"><span class="swatch planet"></span>高度10°以上</span><span class="legend-item">白線: 最高高度の時刻</span></div>`;
       return `<span class="legend-item"><span class="swatch target"></span>南中前後2時間</span>`;
     }
     function altitudeOf(body, obs, date) {
@@ -532,6 +549,66 @@
       }
       return best;
     }
+    function planetViewingInfo(planet, obs, dayStart) {
+      const rangeStart = NIGHT_START;
+      const rangeEnd = NIGHT_END;
+      const step = 10;
+      const points = [];
+      let best = { minute: null, altitude: -999 };
+      for (let minute = rangeStart; minute <= rangeEnd; minute += step) {
+        const date = new Date(dayStart.getTime() + minute * 60000);
+        const altitude = altitudeOf(planet.body, obs, date);
+        if (Number.isFinite(altitude)) {
+          points.push({ minute, altitude });
+          if (altitude > best.altitude) best = { minute, altitude };
+        }
+      }
+      const segments = [];
+      let inSegment = false;
+      let segStart = null;
+      for (const p of points) {
+        const visible = p.altitude >= 10;
+        if (visible && !inSegment) {
+          inSegment = true;
+          segStart = p.minute;
+        }
+        if (!visible && inSegment) {
+          addSegment(segments, segStart, p.minute, 'planet');
+          inSegment = false;
+          segStart = null;
+        }
+      }
+      if (inSegment && points.length) addSegment(segments, segStart, points[points.length - 1].minute, 'planet');
+      return { ...planet, best, segments };
+    }
+    function planetStatusLabel(info) {
+      if (!Number.isFinite(info.best.altitude)) return { cls: 'bad', text: '計算不可' };
+      if (info.best.altitude < 0) return { cls: 'bad', text: '今夜は地平線下' };
+      if (info.best.altitude < 10) return { cls: 'warn', text: '低空のみ' };
+      if (info.best.altitude < 25) return { cls: 'warn', text: '低空注意' };
+      return { cls: 'ok', text: '見ごろあり' };
+    }
+    function renderPlanetViewing(obs, dayStart) {
+      const cards = PLANETS.map(p => planetViewingInfo(p, obs, dayStart)).map(info => {
+        const status = planetStatusLabel(info);
+        const bestText = Number.isFinite(info.best.minute) ? `${clockLabel(info.best.minute)} / 高度 ${info.best.altitude.toFixed(1)}°` : '—';
+        const marker = Number.isFinite(info.best.minute) ? [{ minute: info.best.minute, label: `${info.name} 最高高度` }] : [];
+        const visibleText = info.segments.length ? 'バー表示: 高度10°以上の時間帯' : '高度10°以上になる時間帯はありません';
+        return `<div class="target-item">
+          <div class="target-head">
+            <div>
+              <div class="target-name">${info.name}</div>
+              <div class="small">${info.note}</div>
+            </div>
+            <div class="target-meta">見ごろ ${bestText}<br><span class="${status.cls}">${status.text}</span></div>
+          </div>
+          ${renderRangeBar(info.segments, marker, NIGHT_START, NIGHT_END, 60, true)}
+          <div class="small" style="margin-top:4px">${visibleText}</div>
+        </div>`;
+      }).join('');
+      return `<div class="target-bar-list">${cards}</div>${renderLegend('planet')}`;
+    }
+
     function renderImagingRecommendations(obs, dayStart, eveningAst, nextMorningAst, illum, moonDarkOverlap, darkMinutes) {
       const items = IMAGING_TARGETS.map(t => {
         const best = bestAltitudeDuringNightRaDec(t, obs, dayStart);
@@ -654,6 +731,8 @@
         `<div class="section-label">月が出ている時間帯：夜間専用バー 18時〜翌6時</div>` +
         renderRangeBar(moonNight.segments, [{ minute: minutesFromDayStart(moonNight.rise, dayStart), label: '月の出' }, { minute: minutesFromDayStart(moonNight.set, dayStart), label: '月の入り' }], NIGHT_START, NIGHT_END, 60, true) +
         renderLegend('moon');
+
+      document.getElementById('planetBox').innerHTML = renderPlanetViewing(obs, dayStart);
 
       const rows = [];
       const targetBars = [];
